@@ -80,8 +80,8 @@ jobs:
             docker stop my-app-container || true
             docker rm my-app-container || true
             docker run -d --name my-app-container -p 8080:8080 \
-              -e SPRING_DATASOURCE_URL=${vault.myrealm_spring_datasource_url} \
-              -e SPRING_DATASOURCE_USERNAME=${vault.myrealm_spring_datasource_username} \
-              -e SPRING_DATASOURCE_PASSWORD=${vault.myrealm_spring_datasource_password} \
+              -e SPRING_DATASOURCE_URL=${{ secrets.VAULT_MYREALM_SPRING_DATASOURCE_URL }} \
+              -e SPRING_DATASOURCE_USERNAME=${{ secrets.VAULT_MYREALM_SPRING_DATASOURCE_USERNAME }} \
+              -e SPRING_DATASOURCE_PASSWORD=${{ secrets.VAULT_MYREALM_SPRING_DATASOURCE_PASSWORD }} \
               ${{ secrets.DOCKER_REGISTRY }}/my-app:${{ github.sha }}
 
