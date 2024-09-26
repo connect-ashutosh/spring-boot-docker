@@ -53,7 +53,7 @@ jobs:
             
             # Run the new container with environment variables for DB credentials
             docker run -d --name my-app-container -p 8080:8080 \
-              -e DB_URL=${{ secrets.PROD_DB_URL }} \
-              -e DB_USER=${{ secrets.PROD_DB_USER }} \
-              -e DB_PASS=${{ secrets.PROD_DB_PASS }} \
+              -e SPRING_DATASOURCE_URL=${{ secrets.SPRING_DATASOURCE_URL }} \
+              -e SPRING_DATASOURCE_USERNAME=${{ secrets.SPRING_DATASOURCE_USERNAME }} \
+              -e SPRING_DATASOURCE_PASSWORD=${{ secrets.SPRING_DATASOURCE_PASSWORD }} \
               ${{ secrets.DOCKER_REGISTRY }}/my-app:production
