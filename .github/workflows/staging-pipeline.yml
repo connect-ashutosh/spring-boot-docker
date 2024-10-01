@@ -49,7 +49,7 @@ jobs:
         run: |
           jq -s 'add' trivy-repo-results.sarif trivy-image-results.sarif > combined-results.sarif
 
-      # Upload combined SARIF file
+      # Upload combined SARIF file to GitHub Security tab
       - name: Upload combined SARIF file to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v2
         with:
@@ -65,32 +65,6 @@ jobs:
         run: |
           docker push ${{ secrets.DOCKER_REGISTRY }}/my-app:${{ github.sha }}
           docker push ${{ secrets.DOCKER_REGISTRY }}/my-app:latest
-
-      # Install Vault CLI
-      - name: Install Vault CLI
-        run: |
-          curl -o vault.zip https://releases.hashicorp.com/vault/1.11.0/vault_1.11.0_linux_amd64.zip
-          unzip vault.zip
-          sudo mv vault /usr/local/bin/
-          chmod +x /usr/local/bin/vault
-
-      # Authenticate with Vault and retrieve secrets
-      - name: Fetch secrets from Vault
-        run: |
-          VAULT_ROLE_ID="${{ secrets.VAULT_ROLE_ID }}"
-          VAULT_SECRET_ID="${{ secrets.VAULT_SECRET_ID }}"
-          VAULT_ADDR="http://<VAULT_SERVER_IP>:8200"
-
-          vault write auth/approle/login role_id="$VAULT_ROLE_ID" secret_id="$VAULT_SECRET_ID" > vault-response.json
-          VAULT_TOKEN=$(jq -r ".auth.client_token" vault-response.json)
-
-          SPRING_DATASOURCE_URL=$(vault kv get -field=url -token="$VAULT_TOKEN" secret/myrealm/spring_datasource)
-          SPRING_DATASOURCE_USERNAME=$(vault kv get -field=username -token="$VAULT_TOKEN" secret/myrealm/spring_datasource)
-          SPRING_DATASOURCE_PASSWORD=$(vault kv get -field=password -token="$VAULT_TOKEN" secret/myrealm/spring_datasource)
-
-          echo "SPRING_DATASOURCE_URL=$SPRING_DATASOURCE_URL" >> $GITHUB_ENV
-          echo "SPRING_DATASOURCE_USERNAME=$SPRING_DATASOURCE_USERNAME" >> $GITHUB_ENV
-          echo "SPRING_DATASOURCE_PASSWORD=$SPRING_DATASOURCE_PASSWORD" >> $GITHUB_ENV
 
       # Deploy to DigitalOcean Droplet
       - name: Deploy to Droplet
@@ -108,9 +82,19 @@ jobs:
             docker stop my-app-container || true
             docker rm my-app-container || true
             
-            # Run the Docker container with the environment variables from Vault
+            # Fetching values from the vault and assigning to variables
+            SPRING_DATASOURCE_URL=$(vault read -field=url secret/myrealm/spring_datasource)
+            SPRING_DATASOURCE_USERNAME=$(vault read -field=username secret/myrealm/spring_datasource)
+            SPRING_DATASOURCE_PASSWORD=$(vault read -field=password secret/myrealm/spring_datasource)
+
+            # Check if variables are set correctly
+            echo "SPRING_DATASOURCE_URL=$SPRING_DATASOURCE_URL"
+            echo "SPRING_DATASOURCE_USERNAME=$SPRING_DATASOURCE_USERNAME"
+            echo "SPRING_DATASOURCE_PASSWORD=$SPRING_DATASOURCE_PASSWORD"
+
+            # Run the Docker container with the environment variables
             docker run -d --name my-app-container -p 8080:8080 \
-              -e SPRING_DATASOURCE_URL="${{ env.SPRING_DATASOURCE_URL }}" \
-              -e SPRING_DATASOURCE_USERNAME="${{ env.SPRING_DATASOURCE_USERNAME }}" \
-              -e SPRING_DATASOURCE_PASSWORD="${{ env.SPRING_DATASOURCE_PASSWORD }}" \
+              -e SPRING_DATASOURCE_URL=$SPRING_DATASOURCE_URL \
+              -e SPRING_DATASOURCE_USERNAME=$SPRING_DATASOURCE_USERNAME \
+              -e SPRING_DATASOURCE_PASSWORD=$SPRING_DATASOURCE_PASSWORD \
               ${{ secrets.DOCKER_REGISTRY }}/my-app:${{ github.sha }}
