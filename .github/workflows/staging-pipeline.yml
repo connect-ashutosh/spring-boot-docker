@@ -79,7 +79,7 @@ jobs:
         run: |
           VAULT_ROLE_ID="${{ secrets.VAULT_ROLE_ID }}"
           VAULT_SECRET_ID="${{ secrets.VAULT_SECRET_ID }}"
-          VAULT_ADDR="http://<VAULT_SERVER_IP>:8200"
+          VAULT_ADDR="http://143.110.178.113:8200"
 
           vault write auth/approle/login role_id="$VAULT_ROLE_ID" secret_id="$VAULT_SECRET_ID" > vault-response.json
           VAULT_TOKEN=$(jq -r ".auth.client_token" vault-response.json)
