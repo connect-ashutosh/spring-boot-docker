@@ -49,12 +49,12 @@ jobs:
         run: |
           jq -s 'add' trivy-repo-results.sarif trivy-image-results.sarif > combined-results.sarif
 
-      # Upload combined SARIF file
+      # Upload combined SARIF file to GitHub Security tab
       - name: Upload combined SARIF file to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v2
         with:
           sarif_file: 'combined-results.sarif'
-          
+
       # Log in to DigitalOcean Container Registry
       - name: Log in to DigitalOcean Container Registry
         run: |
@@ -66,7 +66,28 @@ jobs:
           docker push ${{ secrets.DOCKER_REGISTRY }}/my-app:${{ github.sha }}
           docker push ${{ secrets.DOCKER_REGISTRY }}/my-app:latest
 
-      # Deploy to DigitalOcean Droplet
+      # Install Vault CLI
+      - name: Install Vault CLI
+        run: |
+          curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo apt-key add -
+          sudo apt-add-repository "deb [arch=amd64] https://apt.releases.hashicorp.com $(lsb_release -cs) main"
+          sudo apt-get update && sudo apt-get install vault
+      
+      # Authenticate with Vault
+      - name: Authenticate with Vault
+        run: |
+          export VAULT_TOKEN="${{ secrets.VAULT_TOKEN }}"  
+          export VAULT_ADDR='http://143.110.178.113:8200'
+
+      # Fetch secrets from Vault
+      - name: Fetch secrets from Vault
+        id: vault-secrets
+        run: |
+          echo "SPRING_DATASOURCE_URL=$(vault kv get -field=url secret/myrealm/postgresql)" >> $GITHUB_ENV
+          echo "SPRING_DATASOURCE_USERNAME=$(vault kv get -field=username secret/myrealm/postgresql)" >> $GITHUB_ENV
+          echo "SPRING_DATASOURCE_PASSWORD=$(vault kv get -field=password secret/myrealm/postgresql)" >> $GITHUB_ENV
+
+      # Run the Docker container with the environment variables
       - name: Deploy to Droplet
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -74,30 +95,15 @@ jobs:
           username: ${{ secrets.DROPLET_USERNAME }}
           key: ${{ secrets.DROPLET_SSH_KEY }}
           script: |
-            echo "${{ secrets.DOCKER_PASSWORD }}" | docker login ${{ secrets.DOCKER_REGISTRY }} -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
-            docker pull ${{ secrets.DOCKER_REGISTRY }}/my-app:${{ github.sha }}
-            docker pull ${{ secrets.DOCKER_REGISTRY }}/my-app:latest
-            
-            # Stop and remove the existing container if it exists
-            docker stop my-app-container || true
-            docker rm my-app-container || true
-            
-            # Fetching values from the vault and assigning to variables
-            SPRING_DATASOURCE_URL=$(vault read -field=url secret/myrealm/spring_datasource)
-            SPRING_DATASOURCE_USERNAME=$(vault read -field=username secret/myrealm/spring_datasource)
-            SPRING_DATASOURCE_PASSWORD=$(vault read -field=password secret/myrealm/spring_datasource)
+          
+            if [ "$(docker ps -aq -f name=my-app-container)" ]; then
+                docker stop my-app-container || true
+                docker rm my-app-container || true
+            fi
       
-            # Check if variables are set correctly
-            echo "SPRING_DATASOURCE_URL=$SPRING_DATASOURCE_URL"
-            echo "SPRING_DATASOURCE_USERNAME=$SPRING_DATASOURCE_USERNAME"
-            echo "SPRING_DATASOURCE_PASSWORD=$SPRING_DATASOURCE_PASSWORD"
-      
-            # Run the Docker container with the environment variables
+            # Run the new container with the environment variables
             docker run -d --name my-app-container -p 8080:8080 \
-              -e SPRING_DATASOURCE_URL=$SPRING_DATASOURCE_URL \
-              -e SPRING_DATASOURCE_USERNAME=$SPRING_DATASOURCE_USERNAME \
-              -e SPRING_DATASOURCE_PASSWORD=$SPRING_DATASOURCE_PASSWORD \
+              -e SPRING_DATASOURCE_URL=${{ env.SPRING_DATASOURCE_URL }} \
+              -e SPRING_DATASOURCE_USERNAME=${{ env.SPRING_DATASOURCE_USERNAME }} \
+              -e SPRING_DATASOURCE_PASSWORD=${{ env.SPRING_DATASOURCE_PASSWORD }} \
               ${{ secrets.DOCKER_REGISTRY }}/my-app:${{ github.sha }}
-
-
-
