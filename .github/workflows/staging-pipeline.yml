@@ -76,7 +76,7 @@ jobs:
 
       - name: Fetch secrets from Vault
         run: |
-          export VAULT_ADDR='http://127.0.0.1:8200'
+          export VAULT_ADDR='http://143.110.178.113:8200'
           vault kv get -field=url secret/myrealm/spring_datasource > SPRING_DATASOURCE_URL
           vault kv get -field=username secret/myrealm/spring_datasource > SPRING_DATASOURCE_USERNAME
           vault kv get -field=password secret/myrealm/spring_datasource > SPRING_DATASOURCE_PASSWORD
