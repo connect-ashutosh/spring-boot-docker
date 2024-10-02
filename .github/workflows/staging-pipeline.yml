@@ -80,13 +80,13 @@ jobs:
           # Set Vault variables
           VAULT_ROLE_ID="${{ secrets.VAULT_ROLE_ID }}"
           VAULT_SECRET_ID="${{ secrets.VAULT_SECRET_ID }}"
-          VAULT_ADDR="http://143.110.178.113:8200"
+          VAULT_ADDR="${{ secrets.VAULT_ADDR }}"  
       
           # Debug to check the Vault Address
           echo "Vault Address: $VAULT_ADDR"
       
-          # Authenticate with Vault using the approle method
-          vault write -address="$VAULT_ADDR" auth/approle/login role_id="$VAULT_ROLE_ID" secret_id="$VAULT_SECRET_ID" > vault-response.json
+          # Authenticate with Vault using the approle method, ignoring SSL verification if needed
+          VAULT_SKIP_VERIFY=true vault write -address="$VAULT_ADDR" auth/approle/login role_id="$VAULT_ROLE_ID" secret_id="$VAULT_SECRET_ID" > vault-response.json
       
           # Extract Vault token from response
           VAULT_TOKEN=$(jq -r ".auth.client_token" vault-response.json)
@@ -100,9 +100,9 @@ jobs:
           echo "SPRING_DATASOURCE_URL=$SPRING_DATASOURCE_URL" >> $GITHUB_ENV
           echo "SPRING_DATASOURCE_USERNAME=$SPRING_DATASOURCE_USERNAME" >> $GITHUB_ENV
           echo "SPRING_DATASOURCE_PASSWORD=$SPRING_DATASOURCE_PASSWORD" >> $GITHUB_ENV
-      
         env:
-          VAULT_ADDR: "http://143.110.178.113:8200"
+          VAULT_ADDR: "${{ secrets.VAULT_ADDR }}"  
+
 
       # Run the Docker container with the environment variables
       - name: Deploy to Droplet
