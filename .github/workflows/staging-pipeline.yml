@@ -95,7 +95,6 @@ jobs:
           username: ${{ secrets.DROPLET_USERNAME }}
           key: ${{ secrets.DROPLET_SSH_KEY }}
           script: |
-            # Stop and remove the existing container if it exists
             if [ "$(docker ps -aq -f name=my-app-container)" ]; then
                 docker stop my-app-container || true
                 docker rm my-app-container || true
