@@ -107,4 +107,3 @@ jobs:
               -e SPRING_DATASOURCE_USERNAME=${{ env.SPRING_DATASOURCE_USERNAME }} \
               -e SPRING_DATASOURCE_PASSWORD=${{ env.SPRING_DATASOURCE_PASSWORD }} \
               ${{ secrets.DOCKER_REGISTRY }}/my-app:${{ github.sha }}
-            
