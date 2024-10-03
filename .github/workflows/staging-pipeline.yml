@@ -78,24 +78,7 @@ jobs:
         run: |
           export VAULT_TOKEN="${{ secrets.VAULT_TOKEN }}"  
           export VAULT_ADDR='http://143.110.178.113:8200'
-
-      # Fetch secrets from Vault
-      - name: Fetch secrets from Vault
-        id: vault-secrets
-        run: |
-          SPRING_DATASOURCE_URL=$(vault kv get -field=url kv-v2/myrealm/spring_datasource)
-          SPRING_DATASOURCE_USERNAME=$(vault kv get -field=username kv-v2/myrealm/spring_datasource)
-          SPRING_DATASOURCE_PASSWORD=$(vault kv get -field=password kv-v2/myrealm/spring_datasource)
-          
-          echo "SPRING_DATASOURCE_URL=$SPRING_DATASOURCE_URL"
-          echo "SPRING_DATASOURCE_USERNAME=$SPRING_DATASOURCE_USERNAME"
-          echo "SPRING_DATASOURCE_PASSWORD=$SPRING_DATASOURCE_PASSWORD"
-          
-          echo "SPRING_DATASOURCE_URL=$SPRING_DATASOURCE_URL" >> $GITHUB_ENV
-          echo "SPRING_DATASOURCE_USERNAME=$SPRING_DATASOURCE_USERNAME" >> $GITHUB_ENV
-          echo "SPRING_DATASOURCE_PASSWORD=$SPRING_DATASOURCE_PASSWORD" >> $GITHUB_ENV
-
-     
+    
       # Run the Docker container with the environment variables
       - name: Deploy to Droplet
         uses: appleboy/ssh-action@v1.0.3
@@ -109,13 +92,9 @@ jobs:
                 docker rm my-app-container || true
             fi
       
-            echo "SPRING_DATASOURCE_URL=${{ env.SPRING_DATASOURCE_URL }}"
-            echo "SPRING_DATASOURCE_USERNAME=${{ env.SPRING_DATASOURCE_USERNAME }}"
-            echo "SPRING_DATASOURCE_PASSWORD=${{ env.SPRING_DATASOURCE_PASSWORD }}"
-      
-            # Run the new container with the environment variables
+            # Run the new container with the environment variables fetched directly from Vault
             docker run -d --name my-app-container -p 8080:8080 \
-              -e SPRING_DATASOURCE_URL=${{ env.SPRING_DATASOURCE_URL }} \
-              -e SPRING_DATASOURCE_USERNAME=${{ env.SPRING_DATASOURCE_USERNAME }} \
-              -e SPRING_DATASOURCE_PASSWORD=${{ env.SPRING_DATASOURCE_PASSWORD }} \
+              -e SPRING_DATASOURCE_URL=$(vault kv get -field=url kv-v2/myrealm/spring_datasource) \
+              -e SPRING_DATASOURCE_USERNAME=$(vault kv get -field=username kv-v2/myrealm/spring_datasource) \
+              -e SPRING_DATASOURCE_PASSWORD=$(vault kv get -field=password kv-v2/myrealm/spring_datasource) \
               ${{ secrets.DOCKER_REGISTRY }}/my-app:${{ github.sha }}
