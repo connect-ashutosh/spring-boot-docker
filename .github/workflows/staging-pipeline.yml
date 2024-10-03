@@ -83,11 +83,20 @@ jobs:
       - name: Fetch secrets from Vault
         id: vault-secrets
         run: |
-          echo "SPRING_DATASOURCE_URL=$(vault kv get -field=url kv-v2/myrealm/spring_datasource)" >> $GITHUB_ENV
-          echo "SPRING_DATASOURCE_USERNAME=$(vault kv get -field=username kv-v2/myrealm/spring_datasource)" >> $GITHUB_ENV
-          echo "SPRING_DATASOURCE_PASSWORD=$(vault kv get -field=password kv-v2/myrealm/spring_datasource)" >> $GITHUB_ENV
+          SPRING_DATASOURCE_URL=$(vault kv get -field=url kv-v2/myrealm/spring_datasource)
+          SPRING_DATASOURCE_USERNAME=$(vault kv get -field=username kv-v2/myrealm/spring_datasource)
+          SPRING_DATASOURCE_PASSWORD=$(vault kv get -field=password kv-v2/myrealm/spring_datasource)
+          
+          echo "SPRING_DATASOURCE_URL=$SPRING_DATASOURCE_URL"
+          echo "SPRING_DATASOURCE_USERNAME=$SPRING_DATASOURCE_USERNAME"
+          echo "SPRING_DATASOURCE_PASSWORD=$SPRING_DATASOURCE_PASSWORD"
+          
+          echo "SPRING_DATASOURCE_URL=$SPRING_DATASOURCE_URL" >> $GITHUB_ENV
+          echo "SPRING_DATASOURCE_USERNAME=$SPRING_DATASOURCE_USERNAME" >> $GITHUB_ENV
+          echo "SPRING_DATASOURCE_PASSWORD=$SPRING_DATASOURCE_PASSWORD" >> $GITHUB_ENV
+
      
-      # Deploy to Droplet with environment variables
+      # Run the Docker container with the environment variables
       - name: Deploy to Droplet
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -99,6 +108,10 @@ jobs:
                 docker stop my-app-container || true
                 docker rm my-app-container || true
             fi
+      
+            echo "SPRING_DATASOURCE_URL=${{ env.SPRING_DATASOURCE_URL }}"
+            echo "SPRING_DATASOURCE_USERNAME=${{ env.SPRING_DATASOURCE_USERNAME }}"
+            echo "SPRING_DATASOURCE_PASSWORD=${{ env.SPRING_DATASOURCE_PASSWORD }}"
       
             # Run the new container with the environment variables
             docker run -d --name my-app-container -p 8080:8080 \
