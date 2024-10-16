@@ -27,13 +27,4 @@ public class Message {
     public void setBody(String body) {
         this.body = body;
     }
-
-    // toString method for easy debugging
-    @Override
-    public String toString() {
-        return "Message{" +
-                "id=" + id +
-                ", body='" + body + '\'' +
-                '}';
-    }
 }
