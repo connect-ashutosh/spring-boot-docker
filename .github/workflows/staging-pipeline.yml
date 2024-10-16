@@ -95,15 +95,15 @@ jobs:
           username: ${{ secrets.DROPLET_USERNAME }}
           key: ${{ secrets.DROPLET_SSH_KEY }}
           script: |
-          
             if [ "$(docker ps -aq -f name=my-app-container)" ]; then
                 docker stop my-app-container || true
                 docker rm my-app-container || true
             fi
       
-            # Run the new container with the environment variables
+
+            # Run the new container with the environment variables fetched directly from Vault
             docker run -d --name my-app-container -p 8080:8080 \
-              -e SPRING_DATASOURCE_URL=${{ env.SPRING_DATASOURCE_URL }} \
-              -e SPRING_DATASOURCE_USERNAME=${{ env.SPRING_DATASOURCE_USERNAME }} \
-              -e SPRING_DATASOURCE_PASSWORD=${{ env.SPRING_DATASOURCE_PASSWORD }} \
+              -e SPRING_DATASOURCE_URL=$(vault kv get -field=url kv-v2/myrealm/spring_datasource) \
+              -e SPRING_DATASOURCE_USERNAME=$(vault kv get -field=username kv-v2/myrealm/spring_datasource) \
+              -e SPRING_DATASOURCE_PASSWORD=$(vault kv get -field=password kv-v2/myrealm/spring_datasource) \
               ${{ secrets.DOCKER_REGISTRY }}/my-app:${{ github.sha }}
