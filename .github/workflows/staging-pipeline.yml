@@ -78,7 +78,15 @@ jobs:
         run: |
           export VAULT_TOKEN="${{ secrets.VAULT_TOKEN }}"  
           export VAULT_ADDR='http://143.110.178.113:8200'
-    
+
+      # Fetch secrets from Vault
+      - name: Fetch secrets from Vault
+        id: vault-secrets
+        run: |
+          echo "SPRING_DATASOURCE_URL=$(vault kv get -field=url secret/myrealm/postgresql)" >> $GITHUB_ENV
+          echo "SPRING_DATASOURCE_USERNAME=$(vault kv get -field=username secret/myrealm/postgresql)" >> $GITHUB_ENV
+          echo "SPRING_DATASOURCE_PASSWORD=$(vault kv get -field=password secret/myrealm/postgresql)" >> $GITHUB_ENV
+
       # Run the Docker container with the environment variables
       - name: Deploy to Droplet
         uses: appleboy/ssh-action@v1.0.3
@@ -92,6 +100,7 @@ jobs:
                 docker rm my-app-container || true
             fi
       
+
             # Run the new container with the environment variables fetched directly from Vault
             docker run -d --name my-app-container -p 8080:8080 \
               -e SPRING_DATASOURCE_URL=$(vault kv get -field=url kv-v2/myrealm/spring_datasource) \
