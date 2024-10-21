@@ -21,7 +21,7 @@ jobs:
       # Authenticate to HashiCorp Vault
       - name: Authenticate with Vault
         run: |
-          export VAULT_ADDR=https://<vault-server-address>
+          export VAULT_ADDR=${{ secrets.VAULT_SERVER }} 
           vault login ${{ secrets.VAULT_TOKEN }}  # Use Vault token from GitHub Secrets
 
       # Fetch secrets from Vault (without echoing them)
