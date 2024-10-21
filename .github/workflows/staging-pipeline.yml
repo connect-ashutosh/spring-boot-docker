@@ -3,10 +3,10 @@ name: CI/CD Pipeline
 on:
   push:
     branches:
-      - staging  # Trigger on pushes to the staging branch
+      - staging
   pull_request:
     branches:
-      - staging  # Trigger on PRs to the staging branch
+      - staging
 
 jobs:
   build-and-deploy:
@@ -17,6 +17,26 @@ jobs:
       # Checkout code
       - name: Checkout code
         uses: actions/checkout@v3
+
+      # Authenticate to HashiCorp Vault
+      - name: Authenticate with Vault
+        run: |
+          export VAULT_ADDR=${{ secrets.VAULT_SERVER }} 
+          export VAULT_SKIP_VERIFY=true
+          vault login ${{ secrets.VAULT_TOKEN }}  
+          
+
+      # Fetch secrets from Vault (without echoing them)
+      - name: Fetch secrets from Vault
+        id: fetch-secrets
+        run: |
+          DOCKER_USERNAME=$(vault kv get -field=DOCKER_USERNAME kv/ci-secrets)
+          DOCKER_PASSWORD=$(vault kv get -field=DOCKER_PASSWORD kv/ci-secrets)
+          DOCKER_REGISTRY=$(vault kv get -field=DOCKER_REGISTRY kv/ci-secrets)
+          
+          # You can use these secrets directly in subsequent steps without echoing
+        env:
+          VAULT_ADDR: https://<vault-server-address>
 
       # Run Trivy vulnerability scanner on the code repository
       - name: Run Trivy vulnerability scanner in repo mode
@@ -32,15 +52,15 @@ jobs:
       - name: Build Docker image
         run: |
           docker build \
-            -t ${{ secrets.DOCKER_REGISTRY }}/my-app:${{ github.sha }} \
-            -t ${{ secrets.DOCKER_REGISTRY }}/my-app:latest \
+            -t ${{ steps.fetch-secrets.outputs.DOCKER_REGISTRY }}/my-app:${{ github.sha }} \
+            -t ${{ steps.fetch-secrets.outputs.DOCKER_REGISTRY }}/my-app:latest \
             .
 
       # Run Trivy vulnerability scanner on Docker image
       - name: Run Trivy vulnerability scanner on Docker image
         uses: aquasecurity/trivy-action@0.20.0
         with:
-          image-ref: ${{ secrets.DOCKER_REGISTRY }}/my-app:${{ github.sha }}
+          image-ref: ${{ steps.fetch-secrets.outputs.DOCKER_REGISTRY }}/my-app:${{ github.sha }}
           format: 'sarif'
           output: 'trivy-image-results.sarif'
 
@@ -55,55 +75,13 @@ jobs:
         with:
           sarif_file: 'combined-results.sarif'
 
-      # Log in to DigitalOcean Container Registry
+      # Log in to DigitalOcean Container Registry without echoing password
       - name: Log in to DigitalOcean Container Registry
         run: |
-          echo "${{ secrets.DOCKER_PASSWORD }}" | docker login ${{ secrets.DOCKER_REGISTRY }} -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+          docker login ${{ steps.fetch-secrets.outputs.DOCKER_REGISTRY }} -u "${{ steps.fetch-secrets.outputs.DOCKER_USERNAME }}" --password-stdin <<< "${{ steps.fetch-secrets.outputs.DOCKER_PASSWORD }}"
 
       # Push Docker image to DigitalOcean
       - name: Push Docker image to DigitalOcean
         run: |
-          docker push ${{ secrets.DOCKER_REGISTRY }}/my-app:${{ github.sha }}
-          docker push ${{ secrets.DOCKER_REGISTRY }}/my-app:latest
-
-      # Install Vault CLI
-      - name: Install Vault CLI
-        run: |
-          curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo apt-key add -
-          sudo apt-add-repository "deb [arch=amd64] https://apt.releases.hashicorp.com $(lsb_release -cs) main"
-          sudo apt-get update && sudo apt-get install vault
-      
-      # Authenticate with Vault
-      - name: Authenticate with Vault
-        run: |
-          export VAULT_TOKEN="${{ secrets.VAULT_TOKEN }}"  
-          export VAULT_ADDR='http://143.110.178.113:8200'
-
-      # Fetch secrets from Vault
-      - name: Fetch secrets from Vault
-        id: vault-secrets
-        run: |
-          echo "SPRING_DATASOURCE_URL=$(vault kv get -field=url secret/myrealm/postgresql)" >> $GITHUB_ENV
-          echo "SPRING_DATASOURCE_USERNAME=$(vault kv get -field=username secret/myrealm/postgresql)" >> $GITHUB_ENV
-          echo "SPRING_DATASOURCE_PASSWORD=$(vault kv get -field=password secret/myrealm/postgresql)" >> $GITHUB_ENV
-
-      # Run the Docker container with the environment variables
-      - name: Deploy to Droplet
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.DROPLET_IP }}
-          username: ${{ secrets.DROPLET_USERNAME }}
-          key: ${{ secrets.DROPLET_SSH_KEY }}
-          script: |
-            if [ "$(docker ps -aq -f name=my-app-container)" ]; then
-                docker stop my-app-container || true
-                docker rm my-app-container || true
-            fi
-      
-
-            # Run the new container with the environment variables fetched directly from Vault
-            docker run -d --name my-app-container -p 8080:8080 \
-              -e SPRING_DATASOURCE_URL=$(vault kv get -field=url kv-v2/myrealm/spring_datasource) \
-              -e SPRING_DATASOURCE_USERNAME=$(vault kv get -field=username kv-v2/myrealm/spring_datasource) \
-              -e SPRING_DATASOURCE_PASSWORD=$(vault kv get -field=password kv-v2/myrealm/spring_datasource) \
-              ${{ secrets.DOCKER_REGISTRY }}/my-app:${{ github.sha }}
+          docker push ${{ steps.fetch-secrets.outputs.DOCKER_REGISTRY }}/my-app:${{ github.sha }}
+          docker push ${{ steps.fetch-secrets.outputs.DOCKER_REGISTRY }}/my-app:latest
