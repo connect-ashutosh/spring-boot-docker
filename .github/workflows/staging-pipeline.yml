@@ -22,7 +22,9 @@ jobs:
       - name: Authenticate with Vault
         run: |
           export VAULT_ADDR=${{ secrets.VAULT_SERVER }} 
-          vault login ${{ secrets.VAULT_TOKEN }}  # Use Vault token from GitHub Secrets
+          export VAULT_SKIP_VERIFY=true
+          vault login ${{ secrets.VAULT_TOKEN }}  
+          
 
       # Fetch secrets from Vault (without echoing them)
       - name: Fetch secrets from Vault
