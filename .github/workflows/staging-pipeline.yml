@@ -33,10 +33,6 @@ jobs:
           DOCKER_USERNAME=$(vault kv get -field=DOCKER_USERNAME kv/ci-secrets)
           DOCKER_PASSWORD=$(vault kv get -field=DOCKER_PASSWORD kv/ci-secrets)
           DOCKER_REGISTRY=$(vault kv get -field=DOCKER_REGISTRY kv/ci-secrets)
-          
-          # You can use these secrets directly in subsequent steps without echoing
-        env:
-          VAULT_ADDR: https://<vault-server-address>
 
       # Run Trivy vulnerability scanner on the code repository
       - name: Run Trivy vulnerability scanner in repo mode
