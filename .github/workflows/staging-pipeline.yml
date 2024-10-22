@@ -87,7 +87,7 @@ jobs:
           SPRING_DATASOURCE_PASSWORD=$(vault kv get -field=SPRING_DATASOURCE_PASSWORD secret/database-secrets)
 
           # Update the deployment YAML file with the new image and environment variables
-          sed -i "s|registry.digitalocean.com/calyber-backend-registry/my-app:latest|$DOCKER_REGISTRY/my-app:latest|g" deployment.yaml
+          sed -i "s|registry.digitalocean.com/calyber-backend-registry/my-app:latest|$DOCKER_REGISTRY/my-app:latest|g" k8s/deployment.yaml
           sed -i "s|value: .*|value: \"$SPRING_DATASOURCE_URL\"|g" k8s/deployment.yaml
           sed -i "s|value: .*|value: \"$SPRING_DATASOURCE_USERNAME\"|g" k8s/deployment.yaml
           sed -i "s|value: .*|value: \"$SPRING_DATASOURCE_PASSWORD\"|g" k8s/deployment.yaml
