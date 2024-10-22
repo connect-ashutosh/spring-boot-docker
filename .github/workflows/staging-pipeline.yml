@@ -37,18 +37,6 @@ jobs:
           export VAULT_SKIP_VERIFY=true
           vault login ${{ secrets.VAULT_TOKEN }}
 
-      # Fetch secrets from Vault
-      - name: Fetch secrets from Vault
-        run: |
-          DOCKER_USERNAME=$(vault kv get -field=DOCKER_USERNAME secret/ci-secrets)
-          DOCKER_PASSWORD=$(vault kv get -field=DOCKER_PASSWORD secret/ci-secrets)
-          DOCKER_REGISTRY=$(vault kv get -field=DOCKER_REGISTRY secret/ci-secrets)
-
-          # Set the secrets as environment variables for later steps
-          echo "DOCKER_USERNAME=$DOCKER_USERNAME" >> $GITHUB_ENV
-          echo "DOCKER_PASSWORD=$DOCKER_PASSWORD" >> $GITHUB_ENV
-          echo "DOCKER_REGISTRY=$DOCKER_REGISTRY" >> $GITHUB_ENV
-
       # Run Trivy vulnerability scanner on the code repository
       - name: Run Trivy vulnerability scanner in repo mode
         uses: aquasecurity/trivy-action@0.20.0
@@ -79,13 +67,19 @@ jobs:
         with:
           sarif_file: 'combined-results.sarif'
 
-      # Log in to DigitalOcean Container Registry
-      - name: Log in to DigitalOcean Container Registry
+     # Fetch secrets from Vault and log in to DigitalOcean Container Registry
+      - name: Fetch secrets and log in to DigitalOcean Container Registry
         run: |
-          echo "${{ secrets.DOCKER_PASSWORD }}" | docker login $DOCKER_REGISTRY -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
-
+          DOCKER_USERNAME=$(vault kv get -field=DOCKER_USERNAME secret/ci-secrets)
+          DOCKER_PASSWORD=$(vault kv get -field=DOCKER_PASSWORD secret/ci-secrets)
+          DOCKER_REGISTRY=$(vault kv get -field=DOCKER_REGISTRY secret/ci-secrets)
+      
+          # Log in to DigitalOcean Container Registry
+          echo "$DOCKER_PASSWORD" | docker login $DOCKER_REGISTRY -u "$DOCKER_USERNAME" --password-stdin
+      
       # Push Docker image to DigitalOcean
       - name: Push Docker image to DigitalOcean
         run: |
           docker push $DOCKER_REGISTRY/my-app:${{ github.sha }}
           docker push $DOCKER_REGISTRY/my-app:latest
+      
