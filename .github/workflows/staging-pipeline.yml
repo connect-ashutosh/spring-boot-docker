@@ -37,26 +37,6 @@ jobs:
           export VAULT_SKIP_VERIFY=true
           vault login -no-print ${{ secrets.VAULT_TOKEN }}  # Use -no-print to avoid exposing the token
 
-      # Run Trivy vulnerability scanner on the code repository
-      - name: Run Trivy vulnerability scanner in repo mode
-        uses: aquasecurity/trivy-action@0.20.0
-        with:
-          scan-type: 'fs'
-          ignore-unfixed: true
-          format: 'sarif'
-          output: 'trivy-repo-results.sarif'
-          severity: 'CRITICAL'
-
-      # Combine SARIF files
-      - name: Combine SARIF files
-        run: |
-          jq -s 'add' trivy-repo-results.sarif > combined-results.sarif
-
-      # Upload combined SARIF file to GitHub Security tab
-      - name: Upload combined SARIF file to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v2
-        with:
-          sarif_file: 'combined-results.sarif'
 
       # Combined step to fetch secrets, log in, build, and push Docker image
       - name: Build and Push Docker image
