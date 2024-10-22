@@ -68,11 +68,18 @@ jobs:
           sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
           sudo snap install doctl
 
+     
+      # Use doctl with DigitalOcean access token
+      - name: Use doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: "$(vault kv get -field=DOCKER_PASSWORD secret/ci-secrets)"
+
       # Deploy to Kubernetes
       - name: Deploy to Kubernetes
         run: |
-          # Save kubeconfig for the DigitalOcean Kubernetes cluster
-          doctl kubernetes cluster kubeconfig save a11ac9ed-0016-4fcf-9c17-53e091d210c8
+          # Save kubeconfig for the DigitalOcean Kubernetes cluster 
+          doctl kubernetes cluster kubeconfig save "$(vault kv get -field=CLUSTER_NAME secret/k8s-secrets)"
 
           # Fetch database secrets from Vault
           SPRING_DATASOURCE_URL=$(vault kv get -field=SPRING_DATASOURCE_URL secret/database-secrets)
