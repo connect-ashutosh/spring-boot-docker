@@ -67,11 +67,12 @@ jobs:
           echo "$(cat kubectl.sha256)  kubectl" | sha256sum --check
           sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
 
-      - name: Install doctl
-        uses: digitalocean/action-doctl@v2
-        with:
-          token: $(vault kv get -field=DIGITALOCEAN_ACCESS_TOKEN secret/k8s-secrets)
-          
+      - name: Install and Authenticate doctl
+        run: |
+          export DIGITALOCEAN_TOKEN=$(vault kv get -field=DOCKER_PASSWORD secret/ci-secrets)
+          /opt/hostedtoolcache/doctl/1.115.0/x64/doctl auth init -t $DIGITALOCEAN_TOKEN
+      
+                
       # Save kubeconfig for the DigitalOcean Kubernetes cluster 
       - name: Save Kubeconfig
         run: |
