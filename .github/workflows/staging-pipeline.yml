@@ -35,13 +35,23 @@ jobs:
           vault login ${{ secrets.VAULT_TOKEN }}  
           
 
-      # Fetch secrets from Vault (without echoing them)
+      # Set VAULT_ADDR environment variable
+      - name: Set VAULT_ADDR
+        run: echo "VAULT_ADDR=${{ secrets.VAULT_SERVER }}" >> $GITHUB_ENV
+
+      # Authenticate with Vault and fetch secrets
       - name: Fetch secrets from Vault
-        id: fetch-secrets
+        env:
+          VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
         run: |
           DOCKER_USERNAME=$(vault kv get -field=DOCKER_USERNAME secret/ci-secrets)
           DOCKER_PASSWORD=$(vault kv get -field=DOCKER_PASSWORD secret/ci-secrets)
           DOCKER_REGISTRY=$(vault kv get -field=DOCKER_REGISTRY secret/ci-secrets)
+
+          # Set the secrets as environment variables for later steps
+          echo "DOCKER_USERNAME=$DOCKER_USERNAME" >> $GITHUB_ENV
+          echo "DOCKER_PASSWORD=$DOCKER_PASSWORD" >> $GITHUB_ENV
+          echo "DOCKER_REGISTRY=$DOCKER_REGISTRY" >> $GITHUB_ENV
 
       # Run Trivy vulnerability scanner on the code repository
       - name: Run Trivy vulnerability scanner in repo mode
