@@ -17,13 +17,15 @@ spec:
         image: registry.digitalocean.com/calyber-backend-registry/my-app:latest  # Update image
         ports:
         - containerPort: 8080
+        # k8s/deployment.yaml - Example structure
         env:
           - name: SPRING_DATASOURCE_URL
-            value: "SPRING_DATASOURCE_URL"
+            value: SPRING_DATASOURCE_URL_PLACEHOLDER
           - name: SPRING_DATASOURCE_USERNAME
-            value: "SPRING_DATASOURCE_USERNAME"
+            value: SPRING_DATASOURCE_USERNAME_PLACEHOLDER
           - name: SPRING_DATASOURCE_PASSWORD
-            value: "SPRING_DATASOURCE_PASSWORD"
+            value: SPRING_DATASOURCE_PASSWORD_PLACEHOLDER
+
 
 ---
 apiVersion: v1
