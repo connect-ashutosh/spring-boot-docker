@@ -67,21 +67,10 @@ jobs:
           echo "$(cat kubectl.sha256)  kubectl" | sha256sum --check
           sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
 
-      # Install doctl
       - name: Install doctl
-        run: |
-          sudo snap install doctl
-
-      # Authenticate with DigitalOcean
-      - name: Authenticate with DigitalOcean
-        run: |
-          doctl auth init --access-token "$(vault kv get -field=DIGITALOCEAN_ACCESS_TOKEN secret/k8s-secrets)"
-
-      # Create .kube directory and set correct permissions
-      - name: Create .kube directory
-        run: |
-          mkdir -p /home/runner/.kube
-          chmod 700 /home/runner/.kube
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: $(vault kv get -field=DIGITALOCEAN_ACCESS_TOKEN secret/k8s-secrets)
           
       # Save kubeconfig for the DigitalOcean Kubernetes cluster 
       - name: Save Kubeconfig
