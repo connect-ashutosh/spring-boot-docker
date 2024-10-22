@@ -35,7 +35,7 @@ jobs:
         run: |
           export VAULT_ADDR=${{ secrets.VAULT_SERVER }}
           export VAULT_SKIP_VERIFY=true
-          vault login ${{ secrets.VAULT_TOKEN }}
+          vault login -no-print ${{ secrets.VAULT_TOKEN }}  # Use -no-print to avoid exposing the token
 
       # Run Trivy vulnerability scanner on the code repository
       - name: Run Trivy vulnerability scanner in repo mode
@@ -46,14 +46,6 @@ jobs:
           format: 'sarif'
           output: 'trivy-repo-results.sarif'
           severity: 'CRITICAL'
-
-     # Build Docker image from Dockerfile
-      - name: Build Docker image
-        run: |
-          docker build \
-            -t my-app:${{ github.sha }} \
-            -t my-app:latest \
-            .
 
       # Combine SARIF files
       - name: Combine SARIF files
@@ -66,25 +58,28 @@ jobs:
         with:
           sarif_file: 'combined-results.sarif'
 
-     # Fetch secrets from Vault and log in to DigitalOcean Container Registry
+      # Fetch secrets from Vault and log in to DigitalOcean Container Registry
       - name: Fetch secrets and log in to DigitalOcean Container Registry
         run: |
+          # Fetch secrets directly from Vault
           DOCKER_USERNAME=$(vault kv get -field=DOCKER_USERNAME secret/ci-secrets)
           DOCKER_PASSWORD=$(vault kv get -field=DOCKER_PASSWORD secret/ci-secrets)
           DOCKER_REGISTRY=$(vault kv get -field=DOCKER_REGISTRY secret/ci-secrets)
-      
+
           # Log in to DigitalOcean Container Registry
-          echo "$DOCKER_PASSWORD" | docker login $DOCKER_REGISTRY -u "$DOCKER_USERNAME" --password-stdin
-      
+          echo "$DOCKER_PASSWORD" | docker login "$DOCKER_REGISTRY" -u "$DOCKER_USERNAME" --password-stdin
+
+      # Build Docker image from Dockerfile
+      - name: Build Docker image
+        run: |
+          docker build \
+            -t "$DOCKER_REGISTRY/my-app:${{ github.sha }}" \
+            -t "$DOCKER_REGISTRY/my-app:latest" \
+            .
+
       # Push Docker image to DigitalOcean
       - name: Push Docker image to DigitalOcean
         run: |
-          # Tag the image for the registry
-          docker tag my-app:${{ github.sha }} $DOCKER_REGISTRY/my-app:${{ github.sha }}
-          docker tag my-app:latest $DOCKER_REGISTRY/my-app:latest
-          
           # Push the images
-          docker push $DOCKER_REGISTRY/my-app:${{ github.sha }}
-          docker push $DOCKER_REGISTRY/my-app:latest
-      
-            
+          docker push "$DOCKER_REGISTRY/my-app:${{ github.sha }}"
+          docker push "$DOCKER_REGISTRY/my-app:latest"
