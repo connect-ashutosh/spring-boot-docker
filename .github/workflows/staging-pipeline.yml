@@ -79,18 +79,18 @@ jobs:
         run: |
           doctl kubernetes cluster kubeconfig save "$(vault kv get -field=CLUSTER_NAME secret/k8s-secrets)"
 
-      # Fetch database secrets from Vault
       - name: Fetch Database Secrets
         run: |
+          # Fetch secrets from Vault
           SPRING_DATASOURCE_URL=$(vault kv get -field=SPRING_DATASOURCE_URL secret/database-secrets)
           SPRING_DATASOURCE_USERNAME=$(vault kv get -field=SPRING_DATASOURCE_USERNAME secret/database-secrets)
           SPRING_DATASOURCE_PASSWORD=$(vault kv get -field=SPRING_DATASOURCE_PASSWORD secret/database-secrets)
+          
+          # Update the placeholders with the actual secret values in deployment.yaml
+          sed -i "s|SPRING_DATASOURCE_URL_PLACEHOLDER|$SPRING_DATASOURCE_URL|g" k8s/deployment.yaml
+          sed -i "s|SPRING_DATASOURCE_USERNAME_PLACEHOLDER|$SPRING_DATASOURCE_USERNAME|g" k8s/deployment.yaml
+          sed -i "s|SPRING_DATASOURCE_PASSWORD_PLACEHOLDER|$SPRING_DATASOURCE_PASSWORD|g" k8s/deployment.yaml
 
-          # Update the deployment YAML file with the new image and environment variable
-          sed -i "s|value: .*|value: \"$SPRING_DATASOURCE_URL\"|g" k8s/deployment.yaml
-          sed -i "s|value: .*|value: \"$SPRING_DATASOURCE_USERNAME\"|g" k8s/deployment.yaml
-          sed -i "s|value: .*|value: \"$SPRING_DATASOURCE_PASSWORD\"|g" k8s/deployment.yaml
-      
       # Apply the deployment
       - name: Apply Kubernetes Deployment
         run: |
