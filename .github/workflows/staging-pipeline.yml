@@ -78,4 +78,9 @@ jobs:
           # Push the images
           docker push "$DOCKER_REGISTRY/my-app:${{ github.sha }}"
           docker push "$DOCKER_REGISTRY/my-app:latest"
+
+      # Install doctl to interact with DigitalOcean
+      - name: Install doctl
+        run: |
+          sudo snap install doctl --classic
       
