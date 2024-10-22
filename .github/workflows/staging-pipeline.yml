@@ -39,9 +39,9 @@ jobs:
       - name: Fetch secrets from Vault
         id: fetch-secrets
         run: |
-          DOCKER_USERNAME=$(vault kv get -field=DOCKER_USERNAME kv/ci-secrets)
-          DOCKER_PASSWORD=$(vault kv get -field=DOCKER_PASSWORD kv/ci-secrets)
-          DOCKER_REGISTRY=$(vault kv get -field=DOCKER_REGISTRY kv/ci-secrets)
+          DOCKER_USERNAME=$(vault kv get -field=DOCKER_USERNAME secret/ci-secrets)
+          DOCKER_PASSWORD=$(vault kv get -field=DOCKER_PASSWORD secret/ci-secrets)
+          DOCKER_REGISTRY=$(vault kv get -field=DOCKER_REGISTRY secret/ci-secrets)
 
       # Run Trivy vulnerability scanner on the code repository
       - name: Run Trivy vulnerability scanner in repo mode
