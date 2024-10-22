@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: my-app
+  template:
+    metadata:
+      labels:
+        app: my-app
+    spec:
+      containers:
+      - name: my-app
+        image: registry.digitalocean.com/calyber-backend-registry/my-app:latest  # Update image
+        ports:
+        - containerPort: 8080
+        env:
+          - name: SPRING_DATASOURCE_URL
+            value: "SPRING_DATASOURCE_URL"
+          - name: SPRING_DATASOURCE_USERNAME
+            value: "SPRING_DATASOURCE_USERNAME"
+          - name: SPRING_DATASOURCE_PASSWORD
+            value: "SPRING_DATASOURCE_PASSWORD"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-app-service
+spec:
+  selector:
+    app: my-app
+  ports:
+  - protocol: TCP
+    port: 8080       # Port on the Service
+    targetPort: 8080 # Port on the Pod
