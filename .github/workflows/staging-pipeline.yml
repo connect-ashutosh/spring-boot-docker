@@ -59,23 +59,32 @@ jobs:
           docker push "$DOCKER_REGISTRY/my-app:${{ github.sha }}"
           docker push "$DOCKER_REGISTRY/my-app:latest"
 
-     # Install kubectl and doctl
-      - name: Install kubectl and doctl
+      # Install kubectl
+      - name: Install kubectl
         run: |
           curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
           curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl.sha256"
           echo "$(cat kubectl.sha256)  kubectl" | sha256sum --check
           sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+
+      # Install doctl
+      - name: Install doctl
+        run: |
           sudo snap install doctl
 
-      # Deploy to Kubernetes
-      - name: Deploy to Kubernetes
+      # Authenticate with DigitalOcean
+      - name: Authenticate with DigitalOcean
         run: |
-          doctl auth init $(vault kv get -field=DOCKER_PASSWORD secret/ci-secrets)
-          # Save kubeconfig for the DigitalOcean Kubernetes cluster 
+          doctl auth init --access-token "$(vault kv get -field=DIGITALOCEAN_ACCESS_TOKEN secret/k8s-secrets)"
+
+      # Save kubeconfig for the DigitalOcean Kubernetes cluster 
+      - name: Save Kubeconfig
+        run: |
           doctl kubernetes cluster kubeconfig save "$(vault kv get -field=CLUSTER_NAME secret/k8s-secrets)"
 
-          # Fetch database secrets from Vault
+      # Fetch database secrets from Vault
+      - name: Fetch Database Secrets
+        run: |
           SPRING_DATASOURCE_URL=$(vault kv get -field=SPRING_DATASOURCE_URL secret/database-secrets)
           SPRING_DATASOURCE_USERNAME=$(vault kv get -field=SPRING_DATASOURCE_USERNAME secret/database-secrets)
           SPRING_DATASOURCE_PASSWORD=$(vault kv get -field=SPRING_DATASOURCE_PASSWORD secret/database-secrets)
@@ -85,6 +94,8 @@ jobs:
           sed -i "s|value: .*|value: \"$SPRING_DATASOURCE_URL\"|g" deployment.yaml
           sed -i "s|value: .*|value: \"$SPRING_DATASOURCE_USERNAME\"|g" deployment.yaml
           sed -i "s|value: .*|value: \"$SPRING_DATASOURCE_PASSWORD\"|g" deployment.yaml
-
-          # Apply the deployment
+      
+      # Apply the deployment
+      - name: Apply Kubernetes Deployment
+        run: |
           kubectl apply -f k8s/deployment.yaml
