@@ -23,26 +23,22 @@ jobs:
         run: |
           sudo apt update && sudo apt install -y gpg wget
           wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
-          gpg --no-default-keyring --keyring /usr/share/keyrings/hashicorp-archive-keyring.gpg --fingerprint
           echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
           sudo apt update && sudo apt install -y vault
-
-      # Authenticate to HashiCorp Vault
-      - name: Authenticate with Vault
-        run: |
-          export VAULT_ADDR=${{ secrets.VAULT_SERVER }} 
-          export VAULT_SKIP_VERIFY=true
-          vault login ${{ secrets.VAULT_TOKEN }}  
-          
 
       # Set VAULT_ADDR environment variable
       - name: Set VAULT_ADDR
         run: echo "VAULT_ADDR=${{ secrets.VAULT_SERVER }}" >> $GITHUB_ENV
 
-      # Authenticate with Vault and fetch secrets
+      # Authenticate with Vault
+      - name: Authenticate with Vault
+        run: |
+          export VAULT_ADDR=${{ secrets.VAULT_SERVER }}
+          export VAULT_SKIP_VERIFY=true
+          vault login ${{ secrets.VAULT_TOKEN }}
+
+      # Fetch secrets from Vault
       - name: Fetch secrets from Vault
-        env:
-          VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
         run: |
           DOCKER_USERNAME=$(vault kv get -field=DOCKER_USERNAME secret/ci-secrets)
           DOCKER_PASSWORD=$(vault kv get -field=DOCKER_PASSWORD secret/ci-secrets)
@@ -67,15 +63,15 @@ jobs:
       - name: Build Docker image
         run: |
           docker build \
-            -t ${{ steps.fetch-secrets.outputs.DOCKER_REGISTRY }}/my-app:${{ github.sha }} \
-            -t ${{ steps.fetch-secrets.outputs.DOCKER_REGISTRY }}/my-app:latest \
+            -t $DOCKER_REGISTRY/my-app:${{ github.sha }} \
+            -t $DOCKER_REGISTRY/my-app:latest \
             .
 
       # Run Trivy vulnerability scanner on Docker image
       - name: Run Trivy vulnerability scanner on Docker image
         uses: aquasecurity/trivy-action@0.20.0
         with:
-          image-ref: ${{ steps.fetch-secrets.outputs.DOCKER_REGISTRY }}/my-app:${{ github.sha }}
+          image-ref: $DOCKER_REGISTRY/my-app:${{ github.sha }}
           format: 'sarif'
           output: 'trivy-image-results.sarif'
 
@@ -90,13 +86,13 @@ jobs:
         with:
           sarif_file: 'combined-results.sarif'
 
-      # Log in to DigitalOcean Container Registry without echoing password
+      # Log in to DigitalOcean Container Registry
       - name: Log in to DigitalOcean Container Registry
         run: |
-          docker login ${{ steps.fetch-secrets.outputs.DOCKER_REGISTRY }} -u "${{ steps.fetch-secrets.outputs.DOCKER_USERNAME }}" --password-stdin <<< "${{ steps.fetch-secrets.outputs.DOCKER_PASSWORD }}"
+          echo "${{ secrets.DOCKER_PASSWORD }}" | docker login $DOCKER_REGISTRY -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
       # Push Docker image to DigitalOcean
       - name: Push Docker image to DigitalOcean
         run: |
-          docker push ${{ steps.fetch-secrets.outputs.DOCKER_REGISTRY }}/my-app:${{ github.sha }}
-          docker push ${{ steps.fetch-secrets.outputs.DOCKER_REGISTRY }}/my-app:latest
+          docker push $DOCKER_REGISTRY/my-app:${{ github.sha }}
+          docker push $DOCKER_REGISTRY/my-app:latest
