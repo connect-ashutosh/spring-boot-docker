@@ -18,66 +18,80 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # Authenticate to HashiCorp Vault
+      # Install HashiCorp Vault
+      - name: Install Vault
+        run: |
+          sudo apt update && sudo apt install -y gpg wget
+          wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
+          sudo apt update && sudo apt install -y vault
+
+      # Set VAULT_ADDR environment variable
+      - name: Set VAULT_ADDR
+        run: echo "VAULT_ADDR=${{ secrets.VAULT_SERVER }}" >> $GITHUB_ENV
+
+      # Authenticate with Vault
       - name: Authenticate with Vault
         run: |
-          export VAULT_ADDR=${{ secrets.VAULT_SERVER }} 
+          export VAULT_ADDR=${{ secrets.VAULT_SERVER }}
           export VAULT_SKIP_VERIFY=true
-          vault login ${{ secrets.VAULT_TOKEN }}  
-          
+          vault login -no-print ${{ secrets.VAULT_TOKEN }}  # Use -no-print to avoid exposing the token
 
-      # Fetch secrets from Vault (without echoing them)
-      - name: Fetch secrets from Vault
-        id: fetch-secrets
+
+      # Combined step to fetch secrets, log in, build, and push Docker image
+      - name: Build and Push Docker image
         run: |
-          DOCKER_USERNAME=$(vault kv get -field=DOCKER_USERNAME kv/ci-secrets)
-          DOCKER_PASSWORD=$(vault kv get -field=DOCKER_PASSWORD kv/ci-secrets)
-          DOCKER_REGISTRY=$(vault kv get -field=DOCKER_REGISTRY kv/ci-secrets)
-
-      # Run Trivy vulnerability scanner on the code repository
-      - name: Run Trivy vulnerability scanner in repo mode
-        uses: aquasecurity/trivy-action@0.20.0
-        with:
-          scan-type: 'fs'
-          ignore-unfixed: true
-          format: 'sarif'
-          output: 'trivy-repo-results.sarif'
-          severity: 'CRITICAL'
-
-      # Build Docker image from Dockerfile
-      - name: Build Docker image
-        run: |
+          # Fetch secrets directly from Vault
+          DOCKER_USERNAME=$(vault kv get -field=DOCKER_USERNAME secret/ci-secrets)
+          DOCKER_PASSWORD=$(vault kv get -field=DOCKER_PASSWORD secret/ci-secrets)
+          DOCKER_REGISTRY=$(vault kv get -field=DOCKER_REGISTRY secret/ci-secrets)
+      
+          # Log in to DigitalOcean Container Registry
+          echo "$DOCKER_PASSWORD" | docker login "$DOCKER_REGISTRY" -u "$DOCKER_USERNAME" --password-stdin
+      
+          # Build Docker image from Dockerfile
           docker build \
-            -t ${{ steps.fetch-secrets.outputs.DOCKER_REGISTRY }}/my-app:${{ github.sha }} \
-            -t ${{ steps.fetch-secrets.outputs.DOCKER_REGISTRY }}/my-app:latest \
+            -t "$DOCKER_REGISTRY/my-app:${{ github.sha }}" \
+            -t "$DOCKER_REGISTRY/my-app:latest" \
             .
+      
+          # Push the images
+          docker push "$DOCKER_REGISTRY/my-app:${{ github.sha }}"
+          docker push "$DOCKER_REGISTRY/my-app:latest"
 
-      # Run Trivy vulnerability scanner on Docker image
-      - name: Run Trivy vulnerability scanner on Docker image
-        uses: aquasecurity/trivy-action@0.20.0
+      # Install kubectl
+      - name: Install kubectl
+        run: |
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl.sha256"
+          echo "$(cat kubectl.sha256)  kubectl" | sha256sum --check
+          sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+          sudo snap install doctl
+          sudo snap connect doctl:kube-config                                                          
+
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
         with:
-          image-ref: ${{ steps.fetch-secrets.outputs.DOCKER_REGISTRY }}/my-app:${{ github.sha }}
-          format: 'sarif'
-          output: 'trivy-image-results.sarif'
-
-      # Combine SARIF files
-      - name: Combine SARIF files
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}     
+                
+      # Save kubeconfig for the DigitalOcean Kubernetes cluster 
+      - name: Save Kubeconfig
         run: |
-          jq -s 'add' trivy-repo-results.sarif trivy-image-results.sarif > combined-results.sarif
+          doctl kubernetes cluster kubeconfig save "$(vault kv get -field=CLUSTER_NAME secret/k8s-secrets)"
 
-      # Upload combined SARIF file to GitHub Security tab
-      - name: Upload combined SARIF file to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v2
-        with:
-          sarif_file: 'combined-results.sarif'
-
-      # Log in to DigitalOcean Container Registry without echoing password
-      - name: Log in to DigitalOcean Container Registry
+      # Fetch database secrets from Vault
+      - name: Fetch Database Secrets
         run: |
-          docker login ${{ steps.fetch-secrets.outputs.DOCKER_REGISTRY }} -u "${{ steps.fetch-secrets.outputs.DOCKER_USERNAME }}" --password-stdin <<< "${{ steps.fetch-secrets.outputs.DOCKER_PASSWORD }}"
+          SPRING_DATASOURCE_URL=$(vault kv get -field=SPRING_DATASOURCE_URL secret/database-secrets)
+          SPRING_DATASOURCE_USERNAME=$(vault kv get -field=SPRING_DATASOURCE_USERNAME secret/database-secrets)
+          SPRING_DATASOURCE_PASSWORD=$(vault kv get -field=SPRING_DATASOURCE_PASSWORD secret/database-secrets)
 
-      # Push Docker image to DigitalOcean
-      - name: Push Docker image to DigitalOcean
+          # Update the deployment YAML file with the new image and environment variable
+          sed -i "s|value: .*|value: \"$SPRING_DATASOURCE_URL\"|g" k8s/deployment.yaml
+          sed -i "s|value: .*|value: \"$SPRING_DATASOURCE_USERNAME\"|g" k8s/deployment.yaml
+          sed -i "s|value: .*|value: \"$SPRING_DATASOURCE_PASSWORD\"|g" k8s/deployment.yaml
+      
+      # Apply the deployment
+      - name: Apply Kubernetes Deployment
         run: |
-          docker push ${{ steps.fetch-secrets.outputs.DOCKER_REGISTRY }}/my-app:${{ github.sha }}
-          docker push ${{ steps.fetch-secrets.outputs.DOCKER_REGISTRY }}/my-app:latest
+          kubectl apply -f k8s/deployment.yaml
