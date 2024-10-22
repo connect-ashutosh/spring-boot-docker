@@ -51,10 +51,9 @@ jobs:
       - name: Build Docker image
         run: |
           docker build \
-            -t $DOCKER_REGISTRY/my-app:${{ github.sha }} \
-            -t $DOCKER_REGISTRY/my-app:latest \
+            -t my-app:${{ github.sha }} \
+            -t my-app:latest \
             .
-            
 
       # Combine SARIF files
       - name: Combine SARIF files
@@ -80,6 +79,12 @@ jobs:
       # Push Docker image to DigitalOcean
       - name: Push Docker image to DigitalOcean
         run: |
+          # Tag the image for the registry
+          docker tag my-app:${{ github.sha }} $DOCKER_REGISTRY/my-app:${{ github.sha }}
+          docker tag my-app:latest $DOCKER_REGISTRY/my-app:latest
+          
+          # Push the images
           docker push $DOCKER_REGISTRY/my-app:${{ github.sha }}
           docker push $DOCKER_REGISTRY/my-app:latest
       
+            
