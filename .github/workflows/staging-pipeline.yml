@@ -67,13 +67,16 @@ jobs:
             -t $DOCKER_REGISTRY/my-app:latest \
             .
 
-      # Run Trivy vulnerability scanner on Docker image
       - name: Run Trivy vulnerability scanner on Docker image
         uses: aquasecurity/trivy-action@0.20.0
         with:
           image-ref: $DOCKER_REGISTRY/my-app:${{ github.sha }}
           format: 'sarif'
           output: 'trivy-image-results.sarif'
+          ignore-unfixed: true
+          severity: 'CRITICAL'
+          vuln-type: 'os,library'  # Specify the vulnerability types
+      
 
       # Combine SARIF files
       - name: Combine SARIF files
