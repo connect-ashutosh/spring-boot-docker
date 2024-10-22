@@ -77,6 +77,12 @@ jobs:
         run: |
           doctl auth init --access-token "$(vault kv get -field=DIGITALOCEAN_ACCESS_TOKEN secret/k8s-secrets)"
 
+      # Create .kube directory and set correct permissions
+      - name: Create .kube directory
+        run: |
+          mkdir -p /home/runner/.kube
+          chmod 700 /home/runner/.kube
+          
       # Save kubeconfig for the DigitalOcean Kubernetes cluster 
       - name: Save Kubeconfig
         run: |
