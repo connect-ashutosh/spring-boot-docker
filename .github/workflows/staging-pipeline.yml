@@ -79,8 +79,31 @@ jobs:
           docker push "$DOCKER_REGISTRY/my-app:${{ github.sha }}"
           docker push "$DOCKER_REGISTRY/my-app:latest"
 
-      # Install doctl to interact with DigitalOcean
-      - name: Install doctl
+     # Install kubectl and doctl
+      - name: Install kubectl and doctl
         run: |
-          sudo snap install doctl --classic
-      
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl.sha256"
+          echo "$(cat kubectl.sha256)  kubectl" | sha256sum --check
+          sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+          sudo snap install doctl
+
+      # Deploy to Kubernetes
+      - name: Deploy to Kubernetes
+        run: |
+          # Save kubeconfig for the DigitalOcean Kubernetes cluster
+          doctl kubernetes cluster kubeconfig save a11ac9ed-0016-4fcf-9c17-53e091d210c8
+
+          # Fetch database secrets from Vault
+          SPRING_DATASOURCE_URL=$(vault kv get -field=SPRING_DATASOURCE_URL secret/database-secrets)
+          SPRING_DATASOURCE_USERNAME=$(vault kv get -field=SPRING_DATASOURCE_USERNAME secret/database-secrets)
+          SPRING_DATASOURCE_PASSWORD=$(vault kv get -field=SPRING_DATASOURCE_PASSWORD secret/database-secrets)
+
+          # Update the deployment YAML file with the new image and environment variables
+          sed -i "s|registry.digitalocean.com/calyber-backend-registry/my-app:latest|$DOCKER_REGISTRY/my-app:latest|g" deployment.yaml
+          sed -i "s|value: .*|value: \"$SPRING_DATASOURCE_URL\"|g" deployment.yaml
+          sed -i "s|value: .*|value: \"$SPRING_DATASOURCE_USERNAME\"|g" deployment.yaml
+          sed -i "s|value: .*|value: \"$SPRING_DATASOURCE_PASSWORD\"|g" deployment.yaml
+
+          # Apply the deployment
+          kubectl apply -f k8s/deployment.yaml
