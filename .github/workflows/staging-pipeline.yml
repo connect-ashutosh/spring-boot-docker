@@ -59,14 +59,14 @@ jobs:
           output: 'trivy-repo-results.sarif'
           severity: 'CRITICAL'
 
-      # Build Docker image from Dockerfile
+     # Build Docker image from Dockerfile
       - name: Build Docker image
         run: |
           docker build \
             -t $DOCKER_REGISTRY/my-app:${{ github.sha }} \
             -t $DOCKER_REGISTRY/my-app:latest \
-    
-      
+            .
+            
 
       # Combine SARIF files
       - name: Combine SARIF files
