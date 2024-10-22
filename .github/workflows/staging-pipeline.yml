@@ -70,7 +70,7 @@ jobs:
       - name: Install and Authenticate doctl
         run: |
           export DIGITALOCEAN_TOKEN=$(vault kv get -field=DOCKER_PASSWORD secret/ci-secrets)
-          /opt/hostedtoolcache/doctl/1.115.0/x64/doctl auth init -t $DIGITALOCEAN_TOKEN
+          doctl auth init -t $DIGITALOCEAN_TOKEN
       
                 
       # Save kubeconfig for the DigitalOcean Kubernetes cluster 
