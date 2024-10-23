@@ -18,6 +18,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      # Run Trivy vulnerability scanner on the code repository
+      - name: Run Trivy vulnerability scanner in repo mode
+        uses: aquasecurity/trivy-action@0.20.0
+        with:
+          scan-type: 'fs'
+          ignore-unfixed: true
+          format: 'sarif'
+          output: 'trivy-repo-results.sarif'
+          severity: 'CRITICAL'
+
       # Install HashiCorp Vault
       - name: Install Vault
         run: |
@@ -58,6 +68,25 @@ jobs:
           # Push the images
           docker push "$DOCKER_REGISTRY/my-app:${{ github.sha }}"
           docker push "$DOCKER_REGISTRY/my-app:latest"
+
+      # Run Trivy vulnerability scanner on Docker image
+      - name: Run Trivy vulnerability scanner on Docker image
+        uses: aquasecurity/trivy-action@0.20.0
+        with:
+          image-ref: ${{ secrets.DOCKER_REGISTRY }}/my-app:${{ github.sha }}
+          format: 'sarif'
+          output: 'trivy-image-results.sarif'
+
+      # Combine SARIF files
+      - name: Combine SARIF files
+        run: |
+          jq -s 'add' trivy-repo-results.sarif trivy-image-results.sarif > combined-results.sarif
+
+      # Upload combined SARIF file
+      - name: Upload combined SARIF file to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: 'combined-results.sarif'
 
       # Install kubectl
       - name: Install kubectl
