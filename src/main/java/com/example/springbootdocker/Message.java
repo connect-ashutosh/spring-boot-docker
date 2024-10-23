@@ -28,4 +28,4 @@ public class Message {
         this.body = body;
     }
     // toString method for easy debugging
-    
+}
