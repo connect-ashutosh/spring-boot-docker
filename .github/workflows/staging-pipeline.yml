@@ -18,15 +18,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # Run Trivy vulnerability scanner on the code repository
-      - name: Run Trivy vulnerability scanner in repo mode
+      - name: Run Trivy
         uses: aquasecurity/trivy-action@0.20.0
         with:
-          scan-type: 'fs'
+          scan-type: fs
           ignore-unfixed: true
-          format: 'sarif'
-          output: 'trivy-repo-results.sarif'
-          severity: 'CRITICAL'
+          format: sarif
+          output: trivy-repo-results.sarif
+          severity: CRITICAL
+          scan-ref: .
+          vuln-type: os,library
+          list-all-pkgs: false
+
 
       # Install HashiCorp Vault
       - name: Install Vault
