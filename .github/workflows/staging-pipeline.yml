@@ -62,7 +62,7 @@ jobs:
           # Log in to DigitalOcean Container Registry
           echo "$DOCKER_PASSWORD" | docker login "$DOCKER_REGISTRY" -u "$DOCKER_USERNAME" --password-stdin
       
-          # Build Docker image from Dockerfile
+          # Build Docker image from Dockerfile in repo
           docker build \
             -t "$DOCKER_REGISTRY/my-app:${{ github.sha }}" \
             -t "$DOCKER_REGISTRY/my-app:latest" \
