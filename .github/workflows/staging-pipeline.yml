@@ -66,7 +66,8 @@ jobs:
           DOCKER_USERNAME=$(vault kv get -field=DOCKER_USERNAME secret/ci-secrets)
           DOCKER_PASSWORD=$(vault kv get -field=DOCKER_PASSWORD secret/ci-secrets)
           DOCKER_REGISTRY=$(vault kv get -field=DOCKER_REGISTRY secret/ci-secrets)
-      
+          echo "DOCKER_REGISTRY=${DOCKER_REGISTRY}" >> $GITHUB_ENV
+
           # Log in to DigitalOcean Container Registry
           echo "$DOCKER_PASSWORD" | docker login "$DOCKER_REGISTRY" -u "$DOCKER_USERNAME" --password-stdin
       
@@ -83,11 +84,13 @@ jobs:
       # Download Trivy DB if cache is missed
       - name: Download Trivy DB
         run: trivy db pull || echo "Trivy DB already up to date."
-      # Fetch Docker registry and run Trivy in a single step
+      # Run Trivy vulnerability scanner on Docker image
       - name: Run Trivy vulnerability scanner on Docker image
-        run: |
-          DOCKER_REGISTRY=$(vault kv get -field=DOCKER_REGISTRY secret/ci-secrets)
-          trivy image $DOCKER_REGISTRY/my-app:${{ github.sha }} --format sarif --output trivy-image-results.sarif
+        uses: aquasecurity/trivy-action@0.20.0
+        with:
+          image-ref: ${{ env.DOCKER_REGISTRY }}/my-app:${{ github.sha }}
+          format: 'sarif'
+          output: 'trivy-image-results.sarif'
 
       # Combine SARIF files
       - name: Combine SARIF files
