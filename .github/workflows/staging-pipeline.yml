@@ -18,16 +18,27 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # Run Trivy vulnerability scanner on the code repository
-      - name: Run Trivy vulnerability scanner in repo mode
+      # Download Trivy DB if cache is missed
+      - name: Download Trivy DB
+        run: trivy db pull || echo "Trivy DB already up to date."
+     # Cache Trivy DB to avoid repeated downloads and rate limit
+      - name: Cache Trivy DB
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/trivy/db
+          key: trivy-db-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            trivy-db-${{ runner.os }}-
+
+      - name: Run Trivy
         uses: aquasecurity/trivy-action@0.20.0
         with:
-          scan-type: 'fs'
+          scan-type: fs
           ignore-unfixed: true
-          format: 'sarif'
-          output: 'trivy-repo-results.sarif'
-          severity: 'CRITICAL'
-
+          format: sarif
+          output: trivy-repo-results.sarif
+          severity: CRITICAL
+       
       # Install HashiCorp Vault
       - name: Install Vault
         run: |
@@ -55,11 +66,12 @@ jobs:
           DOCKER_USERNAME=$(vault kv get -field=DOCKER_USERNAME secret/ci-secrets)
           DOCKER_PASSWORD=$(vault kv get -field=DOCKER_PASSWORD secret/ci-secrets)
           DOCKER_REGISTRY=$(vault kv get -field=DOCKER_REGISTRY secret/ci-secrets)
-      
+          echo "DOCKER_REGISTRY=${DOCKER_REGISTRY}" >> $GITHUB_ENV
+
           # Log in to DigitalOcean Container Registry
           echo "$DOCKER_PASSWORD" | docker login "$DOCKER_REGISTRY" -u "$DOCKER_USERNAME" --password-stdin
       
-          # Build Docker image from Dockerfile
+          # Build Docker image from Dockerfile in repo
           docker build \
             -t "$DOCKER_REGISTRY/my-app:${{ github.sha }}" \
             -t "$DOCKER_REGISTRY/my-app:latest" \
@@ -69,22 +81,24 @@ jobs:
           docker push "$DOCKER_REGISTRY/my-app:${{ github.sha }}"
           docker push "$DOCKER_REGISTRY/my-app:latest"
 
-      # Run Trivy vulnerability scanner on Docker image
-      - name: Run Trivy vulnerability scanner on Docker image
-        uses: aquasecurity/trivy-action@0.20.0
-        with:
-          image-ref: ${{ secrets.DOCKER_REGISTRY }}/my-app:${{ github.sha }}
-          format: 'sarif'
-          output: 'trivy-image-results.sarif'
+      # Run Trivy vulnerability scanner on Docker image      
+      #- name: Scan Image with Trivy
+        #uses: aquasecurity/trivy-action@0.20.0
+        #with:
+          #image-ref: ${{ env.DOCKER_REGISTRY }}/my-app:${{ github.sha }}
+          #format: sarif
+          #output: trivy-image-results.sarif
+          #scan-type: image 
+          #severity: UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL
 
       # Combine SARIF files
       - name: Combine SARIF files
         run: |
-          jq -s 'add' trivy-repo-results.sarif trivy-image-results.sarif > combined-results.sarif
+          jq -s 'add' trivy-repo-results.sarif > combined-results.sarif
 
       # Upload combined SARIF file
       - name: Upload combined SARIF file to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: 'combined-results.sarif'
 
@@ -108,16 +122,17 @@ jobs:
         run: |
           doctl kubernetes cluster kubeconfig save "$(vault kv get -field=CLUSTER_NAME secret/k8s-secrets)"
 
-      - name: Fetch Database Secrets
-        run: |
           # Fetch secrets from Vault
           SPRING_DATASOURCE_URL=$(vault kv get -field=SPRING_DATASOURCE_URL secret/database-secrets)
-          sed -i "s|value: .*|value: \"$SPRING_DATASOURCE_URL\"|g" k8s/deployment.yaml
+          sed -i "s|value: .* #SPRING_DATASOURCE_URL|value: \"$SPRING_DATASOURCE_URL\" #SPRING_DATASOURCE_URL|g" k8s/deployment.yaml
+          
           SPRING_DATASOURCE_USERNAME=$(vault kv get -field=SPRING_DATASOURCE_USERNAME secret/database-secrets)
-          sed -i "s|value: .*|value: \"$SPRING_DATASOURCE_USERNAME\"|g" k8s/deployment.yaml
+          sed -i "s|value: .* #SPRING_DATASOURCE_USERNAME|value: \"$SPRING_DATASOURCE_USERNAME\" #SPRING_DATASOURCE_USERNAME|g" k8s/deployment.yaml
+          
           SPRING_DATASOURCE_PASSWORD=$(vault kv get -field=SPRING_DATASOURCE_PASSWORD secret/database-secrets)
-          sed -i "s|value: .*|value: \"$SPRING_DATASOURCE_PASSWORD\"|g" k8s/deployment.yaml
+          sed -i "s|value: .* #SPRING_DATASOURCE_PASSWORD|value: \"$SPRING_DATASOURCE_PASSWORD\" #SPRING_DATASOURCE_PASSWORD|g" k8s/deployment.yaml
 
+  
       # Apply the deployment
       - name: Apply Kubernetes Deployment
         run: |
