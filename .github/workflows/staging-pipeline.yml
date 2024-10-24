@@ -91,12 +91,8 @@ jobs:
           image-ref: ${{ env.DOCKER_REGISTRY }}/my-app:${{ github.sha }}
           format: sarif
           output: trivy-image-results.sarif
-          scan-type: image
-          scan-ref: .
-          ignore-unfixed: false
-          vuln-type: os,library
+          scan-type: image 
           severity: UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL
-          list-all-pkgs: false
 
       # Combine SARIF files
       - name: Combine SARIF files
