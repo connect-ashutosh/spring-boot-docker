@@ -94,7 +94,7 @@ jobs:
       # Combine SARIF files
       - name: Combine SARIF files
         run: |
-          jq -s 'add' trivy-repo-results.sarif trivy-image-results.sarif > combined-results.sarif
+          jq -s 'add' trivy-repo-results.sarif > combined-results.sarif
 
       # Upload combined SARIF file
       - name: Upload combined SARIF file to GitHub Security tab
