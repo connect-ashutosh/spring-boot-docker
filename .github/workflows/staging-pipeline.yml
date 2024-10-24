@@ -18,6 +18,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      # Download Trivy DB if cache is missed
+      - name: Download Trivy DB
+        run: trivy db pull || echo "Trivy DB already up to date."
      # Cache Trivy DB to avoid repeated downloads and rate limit
       - name: Cache Trivy DB
         uses: actions/cache@v4
