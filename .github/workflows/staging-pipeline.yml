@@ -84,13 +84,19 @@ jobs:
       # Download Trivy DB if cache is missed
       - name: Download Trivy DB
         run: trivy db pull || echo "Trivy DB already up to date."
-      # Run Trivy vulnerability scanner on Docker image
-      - name: Run Trivy vulnerability scanner on Docker image
+      # Run Trivy vulnerability scanner on Docker image      
+      - name: Scan Image with Trivy
         uses: aquasecurity/trivy-action@0.20.0
         with:
           image-ref: ${{ env.DOCKER_REGISTRY }}/my-app:${{ github.sha }}
-          format: 'sarif'
-          output: 'trivy-image-results.sarif'
+          format: sarif
+          output: trivy-image-results.sarif
+          scan-type: image
+          scan-ref: .
+          ignore-unfixed: false
+          vuln-type: os,library
+          severity: UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL
+          list-all-pkgs: false
 
       # Combine SARIF files
       - name: Combine SARIF files
