@@ -20,11 +20,11 @@ spec:
         # k8s/deployment.yaml - Example structure
         env:
           - name: SPRING_DATASOURCE_URL
-            value: SPRING_DATASOURCE_URL_PLACEHOLDER
+            value: "some-url" #SPRING_DATASOURCE_URL
           - name: SPRING_DATASOURCE_USERNAME
-            value: SPRING_DATASOURCE_USERNAME_PLACEHOLDER
+            value: "some-username" #SPRING_DATASOURCE_USERNAME
           - name: SPRING_DATASOURCE_PASSWORD
-            value: SPRING_DATASOURCE_PASSWORD_PLACEHOLDER
+            value: "some-password" #SPRING_DATASOURCE_PASSWORD
 
 
 ---
