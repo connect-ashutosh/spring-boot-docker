@@ -80,6 +80,9 @@ jobs:
           docker push "$DOCKER_REGISTRY/my-app:${{ github.sha }}"
           docker push "$DOCKER_REGISTRY/my-app:latest"
 
+      # Download Trivy DB if cache is missed
+      - name: Download Trivy DB
+        run: trivy db pull || echo "Trivy DB already up to date."
       # Fetch Docker registry and run Trivy in a single step
       - name: Run Trivy vulnerability scanner on Docker image
         run: |
