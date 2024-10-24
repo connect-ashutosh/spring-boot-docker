@@ -122,16 +122,17 @@ jobs:
         run: |
           doctl kubernetes cluster kubeconfig save "$(vault kv get -field=CLUSTER_NAME secret/k8s-secrets)"
 
-      - name: Fetch Database Secrets
-        run: |
           # Fetch secrets from Vault
           SPRING_DATASOURCE_URL=$(vault kv get -field=SPRING_DATASOURCE_URL secret/database-secrets)
-          sed -i "s|value: .*|value: \"$SPRING_DATASOURCE_URL\"|g" k8s/deployment.yaml
+          sed -i "s|value: .* #SPRING_DATASOURCE_URL|value: \"$SPRING_DATASOURCE_URL\" #SPRING_DATASOURCE_URL|g" k8s/deployment.yaml
+          
           SPRING_DATASOURCE_USERNAME=$(vault kv get -field=SPRING_DATASOURCE_USERNAME secret/database-secrets)
-          sed -i "s|value: .*|value: \"$SPRING_DATASOURCE_USERNAME\"|g" k8s/deployment.yaml
+          sed -i "s|value: .* #SPRING_DATASOURCE_USERNAME|value: \"$SPRING_DATASOURCE_USERNAME\" #SPRING_DATASOURCE_USERNAME|g" k8s/deployment.yaml
+          
           SPRING_DATASOURCE_PASSWORD=$(vault kv get -field=SPRING_DATASOURCE_PASSWORD secret/database-secrets)
-          sed -i "s|value: .*|value: \"$SPRING_DATASOURCE_PASSWORD\"|g" k8s/deployment.yaml
+          sed -i "s|value: .* #SPRING_DATASOURCE_PASSWORD|value: \"$SPRING_DATASOURCE_PASSWORD\" #SPRING_DATASOURCE_PASSWORD|g" k8s/deployment.yaml
 
+  
       # Apply the deployment
       - name: Apply Kubernetes Deployment
         run: |
