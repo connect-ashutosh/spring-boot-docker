@@ -39,8 +39,7 @@ spec:
               secretKeyRef:
                 name: loki-url-secret
                 key: LOKI_URL
-
-
+                
 ---
 apiVersion: v1
 kind: Service
