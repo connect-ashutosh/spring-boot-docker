@@ -28,5 +28,4 @@ public class Message {
         this.body = body;
     }
     // toString method for easy debugging
-    // adding comment for test
 }
