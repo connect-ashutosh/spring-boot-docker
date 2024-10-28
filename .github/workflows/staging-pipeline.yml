@@ -40,7 +40,7 @@ jobs:
           severity: CRITICAL
        
       # Install HashiCorp Vault
-      - name: Install Vault
+      - name: Connect Vault
         run: |
           sudo apt update && sudo apt install -y gpg wget
           wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
