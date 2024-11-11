@@ -81,7 +81,7 @@ jobs:
           docker push "$DOCKER_REGISTRY/my-app:${{ github.sha }}"
           docker push "$DOCKER_REGISTRY/my-app:latest"
 
-      # Run Trivy vulnerability scanner on Docker image      
+      # Run Trivy vulnerability scanner on Docker image (commenting out for now)     
       #- name: Scan Image with Trivy
         #uses: aquasecurity/trivy-action@0.20.0
         #with:
